@@ -13,10 +13,13 @@ authors = [{ name = "jinlio" }]
 dependencies = [
     "anthropic>=0.40.0",
     "yt-dlp>=2024.0.0",
+    "tenacity>=8.0.0",
+    "tqdm>=4.65.0",
 ]
 
 [project.optional-dependencies]
 ffmpeg = ["imageio-ffmpeg>=0.5.0"]
+dev = ["pytest>=7.0", "pytest-mock>=3.10", "ruff>=0.1.0", "mypy>=1.0.0"]
 
 [project.scripts]
 watchdigest = "watchdigest_for_minimax.__main__:main"
@@ -38,5 +41,9 @@ warn_return_any = true
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = "imageio_ffmpeg.*"
+module = ["imageio_ffmpeg.*", "tqdm.*"]
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
