@@ -21,7 +21,7 @@ def parse_douyin_share(text: str) -> str | None:
 
     Share text format: "7.99 复制打开抖音，看看【XXX】https://v.douyin.com/xxx/"
     """
-    match = re.search(r"https?://v\.douyin\.com/\S+", text)
+    match = re.search(r"https?://v\.douyin\.com/[\w\-/]+", text)
     if match:
         return match.group(0).rstrip("/")
     match = re.search(r"https?://www\.douyin\.com/video/\d+", text)
@@ -66,10 +66,16 @@ def download_douyin(url: str, out_dir: Path) -> Path:
     ytdlp = _get_ytdlp()
     output_template = str(out_dir / "%(id)s.%(ext)s")
 
+    ua = (
+        "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
     cmd = [
         ytdlp,
         "--add-header",
         "Referer: https://www.douyin.com",
+        "--add-header",
+        ua,
         "-f",
         "best",
         "-o",
