@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+SYSTEM_PROMPT = "你是视频总结助手，擅长分析视频内容并生成结构化摘要。"
+
 
 def _format_seconds(seconds: float) -> str:
     """Format seconds to MM:SS or HH:MM:SS."""

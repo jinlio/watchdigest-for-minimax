@@ -2,9 +2,21 @@
 
 from __future__ import annotations
 
+import logging
+
 import anthropic
+from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from watchdigest_for_minimax.config import get_api_key, get_base_url
+from watchdigest_for_minimax.prompt import SYSTEM_PROMPT
+
+logger = logging.getLogger(__name__)
+
+_RETRYABLE_EXCEPTIONS = (
+    anthropic.APIConnectionError,
+    anthropic.RateLimitError,
+    anthropic.InternalServerError,
+)
 
 
 class MinimaxClient:
@@ -19,6 +31,13 @@ class MinimaxClient:
         )
         self.model = "MiniMax-M3"
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(_RETRYABLE_EXCEPTIONS),
+        before_sleep=before_sleep_log(logger, logging.WARNING),  # type: ignore[arg-type]
+        reraise=True,
+    )
     def analyze_video(self, frames_b64: list[str], prompt: str) -> str:
         """Analyze video frames and return summary.
 
@@ -52,7 +71,7 @@ class MinimaxClient:
         response = self.client.messages.create(
             model=self.model,
             max_tokens=4096,
-            system="你是视频总结助手，擅长分析视频内容并生成结构化摘要。",
+            system=SYSTEM_PROMPT,
             messages=[
                 {
                     "role": "user",
