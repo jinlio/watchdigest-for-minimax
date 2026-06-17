@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+from watchdigest_for_minimax.config import get_pricing
+
 
 def save_report(
     output_dir: Path,
@@ -33,9 +35,10 @@ def save_report(
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     token_wan = token_estimate / 10_000
 
-    # Estimate cost (≤512K tier): input ¥2.10/M tokens, output ¥8.40/M tokens
-    input_cost = (token_estimate / 1_000_000) * 2.10
-    output_cost = (4096 / 1_000_000) * 8.40  # ~4096 output tokens
+    # Estimate cost (≤512K tier)
+    pricing = get_pricing()
+    input_cost = (token_estimate / 1_000_000) * pricing["input_per_million"]
+    output_cost = (4096 / 1_000_000) * pricing["output_per_million"]  # ~4096 output tokens
     total_cost = input_cost + output_cost
 
     report = f"""# {video_id}

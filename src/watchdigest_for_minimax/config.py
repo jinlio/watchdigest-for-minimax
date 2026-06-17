@@ -22,3 +22,11 @@ def get_base_url() -> str:
 def get_output_dir() -> Path:
     """Get output directory for reports."""
     return Path.home() / "Documents" / "watchdigest"
+
+
+def get_pricing() -> dict[str, float]:
+    """Get pricing from environment, with defaults."""
+    return {
+        "input_per_million": float(os.getenv("WATCHDIGEST_INPUT_PRICE", "2.10")),
+        "output_per_million": float(os.getenv("WATCHDIGEST_OUTPUT_PRICE", "8.40")),
+    }
