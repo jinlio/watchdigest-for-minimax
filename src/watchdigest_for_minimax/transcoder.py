@@ -144,7 +144,9 @@ def extract_frames_base64(
 
     # Read and encode frames
     frames_b64: list[str] = []
-    for frame_file in sorted(frames_dir.glob("frame_*.jpg")):
+    from tqdm import tqdm
+
+    for frame_file in tqdm(sorted(frames_dir.glob("frame_*.jpg")), desc="编码帧", unit="帧"):
         with open(frame_file, "rb") as f:
             frames_b64.append(base64.b64encode(f.read()).decode("ascii"))
 
