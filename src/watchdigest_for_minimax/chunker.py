@@ -25,17 +25,20 @@ def needs_chunking(token_estimate: int) -> bool:
 def chunk_frames(
     frames_b64: list[str],
     fps: float = 1.0,
-) -> list[list[str]]:
-    """Split frames into chunks based on CHUNK_DURATION_SECONDS.
+) -> list[tuple[list[str], float, float]]:
+    """Split frames into chunks with time ranges.
 
-    Each chunk corresponds to CHUNK_DURATION_SECONDS of video.
+    Returns list of (frames_b64_slice, start_seconds, end_seconds).
     """
     frames_per_chunk = int(CHUNK_DURATION_SECONDS * fps)
     if frames_per_chunk <= 0:
         frames_per_chunk = 1
 
-    chunks: list[list[str]] = []
+    chunks: list[tuple[list[str], float, float]] = []
     for i in range(0, len(frames_b64), frames_per_chunk):
-        chunks.append(frames_b64[i : i + frames_per_chunk])
+        chunk_frames_slice = frames_b64[i : i + frames_per_chunk]
+        start_s = i / fps
+        end_s = min((i + frames_per_chunk) / fps, len(frames_b64) / fps)
+        chunks.append((chunk_frames_slice, start_s, end_s))
 
     return chunks
