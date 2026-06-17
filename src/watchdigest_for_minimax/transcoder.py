@@ -17,7 +17,7 @@ def _get_ffmpeg() -> str:
 
     # Fallback to imageio-ffmpeg bundled binary
     try:
-        import imageio_ffmpeg  # type: ignore[import-untyped]
+        import imageio_ffmpeg  # type: ignore[import-untyped,import-not-found]
 
         return str(imageio_ffmpeg.get_ffmpeg_exe())
     except ImportError:
