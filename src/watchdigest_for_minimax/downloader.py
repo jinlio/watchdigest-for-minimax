@@ -253,8 +253,8 @@ def download_bilibili(url: str, out_dir: Path) -> Path:
 
     Strategy:
     1. 通过 API 获取视频信息（cid、标题）
-    2. 通过 API 获取 FLV/MP4 流地址（fnval=0 避免 DASH CDN 问题）
-    3. 下载视频文件（带重试）
+    2. 通过 API 获取 FLV/MP4 流地址 + backup_url
+    3. 依次尝试 main CDN → backup CDN，每个最多重试 2 次
     """
     import urllib.request
 
@@ -283,7 +283,7 @@ def download_bilibili(url: str, out_dir: Path) -> Path:
     cid = info["data"]["cid"]
     logger.info("标题: %s (CID: %s)", title, cid)
 
-    # Step 2: Get play URL (fnval=0 → FLV/MP4 直接链接，避免 DASH CDN 问题)
+    # Step 2: Get play URL (fnval=0 → FLV/MP4 直接链接)
     play_url = f"https://api.bilibili.com/x/player/playurl?bvid={bv_id}&cid={cid}&qn=32&fnval=0"
     req = urllib.request.Request(play_url, headers=api_headers)
     with urllib.request.urlopen(req, timeout=15) as resp:
@@ -296,29 +296,37 @@ def download_bilibili(url: str, out_dir: Path) -> Path:
     if not durl:
         raise RuntimeError("B站未返回视频流地址")
 
-    video_url = durl[0]["url"]
-    logger.info("视频流: %s...", video_url[:80])
+    # Collect all URLs: main + backups
+    urls_to_try: list[str] = [durl[0]["url"]]
+    for backup in durl[0].get("backup_url", []):
+        urls_to_try.append(backup)
+    logger.info("可用 CDN: %d 个", len(urls_to_try))
 
-    # Step 3: Download with retry
+    # Step 3: Try each CDN with retry
     safe_title = re.sub(r'[\\/*?:"<>|]', "_", title)[:100]
     output_path = out_dir / f"{safe_title}.mp4"
 
-    for attempt in range(3):
-        try:
-            logger.info("下载中 (attempt %d/3)...", attempt + 1)
-            req = urllib.request.Request(video_url, headers=api_headers)
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                data = resp.read()
-                output_path.write_bytes(data)
-                size_mb = len(data) / 1024 / 1024
-                logger.info("下载成功: %.1f MB", size_mb)
-                return output_path
-        except Exception as e:
-            logger.warning("下载失败 (attempt %d/3): %s", attempt + 1, e)
-            if attempt < 2:
-                time.sleep(2 ** attempt)
+    for cdn_idx, cdn_url in enumerate(urls_to_try):
+        cdn_host = cdn_url.split("/")[2] if "/" in cdn_url else "unknown"
+        for attempt in range(2):
+            try:
+                logger.info("CDN %d/%d attempt %d: %s...", cdn_idx + 1, len(urls_to_try), attempt + 1, cdn_host)
+                req = urllib.request.Request(cdn_url, headers=api_headers)
+                with urllib.request.urlopen(req, timeout=120) as resp:
+                    data = resp.read()
+                    expected_size = durl[0].get("size", 0)
+                    if expected_size and len(data) < expected_size * 0.95:
+                        raise OSError(f"Incomplete: {len(data)}/{expected_size} bytes")
+                    output_path.write_bytes(data)
+                    size_mb = len(data) / 1024 / 1024
+                    logger.info("下载成功: %.1f MB (CDN: %s)", size_mb, cdn_host)
+                    return output_path
+            except Exception as e:
+                logger.warning("CDN %d attempt %d 失败: %s", cdn_idx + 1, attempt + 1, e)
+                if attempt < 1:
+                    time.sleep(1)
 
-    raise RuntimeError("B站视频下载失败（重试 3 次）")
+    raise RuntimeError("B站视频下载失败（所有 CDN 均失败）")
 
 
 def download_douyin(url: str, out_dir: Path) -> Path:
