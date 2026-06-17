@@ -15,6 +15,9 @@ dependencies = [
     "yt-dlp>=2024.0.0",
 ]
 
+[project.optional-dependencies]
+ffmpeg = ["imageio-ffmpeg>=0.5.0"]
+
 [project.scripts]
 watchdigest = "watchdigest_for_minimax.__main__:main"
 
