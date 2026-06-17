@@ -152,39 +152,3 @@ def extract_frames_base64(
     shutil.rmtree(frames_dir, ignore_errors=True)
 
     return frames_b64
-
-
-def transcode_to_standard(
-    video_path: Path,
-    out_dir: Path,
-    height: int = 720,
-) -> Path:
-    """Transcode video to H.264/AAC/MP4 at specified height."""
-    ffmpeg = _get_ffmpeg()
-    output_path = out_dir / f"{video_path.stem}_transcoded.mp4"
-
-    cmd = [
-        ffmpeg,
-        "-i",
-        str(video_path),
-        "-vf",
-        f"scale=-2:{height}",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "128k",
-        "-movflags",
-        "+faststart",
-        str(output_path),
-        "-y",
-    ]
-
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        raise RuntimeError(f"ffmpeg 转码失败:\n{result.stderr}")
-
-    return output_path
