@@ -32,19 +32,9 @@ def get_pricing() -> dict[str, float]:
     }
 
 
-def get_video_mode() -> str:
-    """Get video processing mode."""
-    return os.getenv("WATCHDIGEST_VIDEO_MODE", "auto")
-
-
 def get_chunk_seconds() -> int:
     """Get chunk duration in seconds for video_url mode."""
     return int(os.getenv("WATCHDIGEST_CHUNK_SECONDS", "45"))
-
-
-def get_chunk_target_size_mb() -> int:
-    """Get target chunk size in MB."""
-    return int(os.getenv("WATCHDIGEST_CHUNK_TARGET_SIZE_MB", "5"))
 
 
 def get_http_port() -> int:

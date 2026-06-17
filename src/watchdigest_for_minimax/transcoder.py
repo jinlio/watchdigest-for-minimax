@@ -1,28 +1,25 @@
-"""Video transcoding and frame extraction using ffmpeg."""
+"""Video info extraction using ffprobe/ffmpeg."""
 
 from __future__ import annotations
 
-import base64
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
 
 
 def _get_ffmpeg() -> str:
-    """Find ffmpeg executable, with fallback to imageio-ffmpeg bundled version."""
+    """Find ffmpeg executable."""
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg:
         return ffmpeg
-
-    # Fallback to imageio-ffmpeg bundled binary
     try:
         import imageio_ffmpeg
 
         return str(imageio_ffmpeg.get_ffmpeg_exe())
     except ImportError:
         pass
-
     raise RuntimeError("未找到 ffmpeg。请安装: winget install Gyan.FFmpeg 或 pip install imageio-ffmpeg")
 
 
@@ -31,8 +28,6 @@ def _get_ffprobe() -> str:
     ffprobe = shutil.which("ffprobe")
     if ffprobe:
         return ffprobe
-
-    # Try imageio-ffmpeg directory
     try:
         import imageio_ffmpeg
 
@@ -42,8 +37,6 @@ def _get_ffprobe() -> str:
             return str(ffprobe_path)
     except ImportError:
         pass
-
-    # Fallback: use ffmpeg to get duration
     return ""
 
 
@@ -76,18 +69,9 @@ def get_video_info(video_path: Path) -> dict[str, str | int | float]:
                 "height": height,
             }
 
-    # Fallback: use ffmpeg to probe
     ffmpeg = _get_ffmpeg()
-    cmd = [
-        ffmpeg,
-        "-i",
-        str(video_path),
-        "-hide_banner",
-    ]
+    cmd = [ffmpeg, "-i", str(video_path), "-hide_banner"]
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    # Parse duration from stderr
-    import re
-
     match = re.search(r"Duration:\s*(\d+):(\d+):(\d+)\.(\d+)", result.stderr)
     if match:
         h, m, s, ms = int(match.group(1)), int(match.group(2)), int(match.group(3)), int(match.group(4))
@@ -111,46 +95,3 @@ def _format_duration(seconds: float) -> str:
     if hours > 0:
         return f"{hours:02d}:{minutes:02d}:{secs:02d}"
     return f"{minutes:02d}:{secs:02d}"
-
-
-def extract_frames_base64(
-    video_path: Path,
-    out_dir: Path,
-    fps: float = 1.0,
-) -> list[str]:
-    """Extract frames at given fps and return as base64-encoded strings."""
-    ffmpeg = _get_ffmpeg()
-    frames_dir = out_dir / "frames"
-    frames_dir.mkdir(exist_ok=True)
-
-    # Extract frames as JPEG
-    cmd = [
-        ffmpeg,
-        "-i",
-        str(video_path),
-        "-vf",
-        f"fps={fps},scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2",
-        "-q:v",
-        "3",
-        "-f",
-        "image2",
-        str(frames_dir / "frame_%06d.jpg"),
-        "-y",
-    ]
-
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        raise RuntimeError(f"ffmpeg 抽帧失败:\n{result.stderr}")
-
-    # Read and encode frames
-    frames_b64: list[str] = []
-    from tqdm import tqdm
-
-    for frame_file in tqdm(sorted(frames_dir.glob("frame_*.jpg")), desc="编码帧", unit="帧"):
-        with open(frame_file, "rb") as f:
-            frames_b64.append(base64.b64encode(f.read()).decode("ascii"))
-
-    # Cleanup frames directory
-    shutil.rmtree(frames_dir, ignore_errors=True)
-
-    return frames_b64
